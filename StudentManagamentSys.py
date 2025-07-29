@@ -1,42 +1,38 @@
 import heapq
+import copy
 
-# For Core Features
 class HashMapRecording:  
-    undo_stack=[]
-    List_of_Students=[ [] for _ in range(20)]   # List of recorded data per student, inside a List of students
+    undo_stack = []
+    List_of_Students = [[] for _ in range(20)]   # Buckets for hash table
 
-    # Constructor for a new record to be added
-    def __init__(self, roll_no,name,course,grades):
-        self.roll_no=roll_no
-        self.name=name
-        self.course=course
-        self.grade=grades
+    def __init__(self, roll_no, name, course, grades):
+        self.roll_no = roll_no
+        self.name = name
+        self.course = course
+        self.grade = grades
 
-    # Hash Map KEY Calculation
     @staticmethod
     def hash_function(value):
-        value=str(value)
-        sum_of_char=0
-        for char in value:
-            sum_of_char+=ord(char)
+        value = str(value)
+        sum_of_char = sum(ord(char) for char in value)
+        return sum_of_char % 20
 
-        return sum_of_char%20
-    
     def addStudent(self):
         index = HashMapRecording.hash_function(self.roll_no)
         for student in HashMapRecording.List_of_Students[index]:
-            if student.roll_no==self.roll_no:
-                print(f"--Student with roll no. {self.roll_no} already exits--")
+            if student.roll_no == self.roll_no:
+                print(f"--Student with roll no. {self.roll_no} already exists--")
                 return
-            
         HashMapRecording.List_of_Students[index].append(self)
+        # Save to undo stack
+        HashMapRecording.undo_stack.append(('add', self))
         print(f"--Student {self.name} added at index {index}--")
-    
+
     @staticmethod
     def searchStudent(roll_no):
         index = HashMapRecording.hash_function(roll_no)
         for student in HashMapRecording.List_of_Students[index]:
-            if student.roll_no==roll_no:
+            if student.roll_no == roll_no:
                 print("--Student Found--")
                 print(f"Roll.no: {student.roll_no}")
                 print(f"Name: {student.name}")
@@ -49,95 +45,83 @@ class HashMapRecording:
     def updateStudent(roll_no):
         index = HashMapRecording.hash_function(roll_no)
         for student in HashMapRecording.List_of_Students[index]:
-            if student.roll_no==roll_no:
+            if student.roll_no == roll_no:
+                # Save previous state for undo
+                previous = copy.deepcopy(student)
                 print("--Student Found--")
-                while(True):
-                    print("\n")
-                    print(f"1. Update Name: {student.name}")
-                    print(f"2. Update Course: {student.course}")
-                    print(f"3. Update Grade: {student.grade}")
-                    print(f"4. Back")
-                    update_input=input("Enter choice: ")
-                    print("\n")
+                while True:
+                    print("\n1. Update Name")
+                    print("2. Update Course")
+                    print("3. Update Grade")
+                    print("4. Back")
+                    update_input = input("Enter choice: ")
+
                     try:
-                        update_input=int(update_input)
-                        if 0<update_input<5:
-                            if update_input==1:
-                                updated_name=input("Enter Updated Name: ")
-                                student.name=updated_name
-                                print("--Student Name Updated Successfully")
-                                print("\n")
-                            if update_input==2:
-                                updated_course=input("Enter Updated Course: ")
-                                student.course=updated_course
-                                print("--Course Updated Successfully")
-                                print("\n")
-                            if update_input==3:
-                                updated_grade = input("Enter Updated Grades separated by commas: ")
+                        update_input = int(update_input)
+                        if 1 <= update_input <= 4:
+                            if update_input == 1:
+                                student.name = input("Enter Updated Name: ")
+                                print("--Student Name Updated Successfully--")
+                            elif update_input == 2:
+                                student.course = input("Enter Updated Course: ")
+                                print("--Course Updated Successfully--")
+                            elif update_input == 3:
+                                updated_grade = input("Enter Updated Grades (comma separated): ")
                                 student.grade = [g.strip() for g in updated_grade.split(",")]
-                                
-                                print("--Grade Updated Successfully")
-                                print("\n")
-                            if update_input==4:
-                                print("--Back to the main menu--")
-                                print("\n")
-                                return 
+                                print("--Grades Updated Successfully--")
+                            elif update_input == 4:
+                                print("--Back to main menu--")
+                                return
+                            HashMapRecording.undo_stack.append(('update', previous))
                         else:
                             print("--Invalid Choice--")
-                            
                     except:
                         print("--Input must be a valid number--")
-
+                return
         print("--Student not found--")
-        
+
     @staticmethod
     def deleteStudent(roll_no):
         index = HashMapRecording.hash_function(roll_no)
         for i, student in enumerate(HashMapRecording.List_of_Students[index]):
-            if student.roll_no==roll_no:
-                del HashMapRecording.List_of_Students[index][i]
+            if student.roll_no == roll_no:
+                deleted = HashMapRecording.List_of_Students[index].pop(i)
+                HashMapRecording.undo_stack.append(('delete', deleted))
                 print(f"--Student with Roll no. {student.roll_no} deleted--")
                 return
         print(f"--Student with roll no. {roll_no} not found--")
 
-    def merge(left,right):
-        result=[]
-        i=j=0
-        while i<len(left) and j<len(right):
+    def merge(left, right):
+        result = []
+        i = j = 0
+        while i < len(left) and j < len(right):
             if left[i].roll_no < right[j].roll_no:
                 result.append(left[i])
-                i+=1
+                i += 1
             else:
                 result.append(right[j])
-                j+=1
-
+                j += 1
         result.extend(left[i:])
         result.extend(right[j:])
         return result
-        
-    def mergeSortStudents(students):
-        if len(students)<=1:
-            return students
-        
-        mid = len(students)//2
-        left = HashMapRecording.mergeSortStudents(students[:mid])
-        right= HashMapRecording.mergeSortStudents(students[mid:])
 
+    def mergeSortStudents(students):
+        if len(students) <= 1:
+            return students
+        mid = len(students) // 2
+        left = HashMapRecording.mergeSortStudents(students[:mid])
+        right = HashMapRecording.mergeSortStudents(students[mid:])
         return HashMapRecording.merge(left, right)
-   
 
     @staticmethod
     def ShowStudents():
-        all_students=[]
+        all_students = []
         for bucket in HashMapRecording.List_of_Students:
             all_students.extend(bucket)
-
         if not all_students:
             print("--No student records found--")
             return
-        
-        sorted_students=HashMapRecording.mergeSortStudents(all_students)
-        
+        sorted_students = HashMapRecording.mergeSortStudents(all_students)
         for student in sorted_students:
             print(f"Roll.no: {student.roll_no}")
             print(f"Name: {student.name}")
@@ -152,33 +136,18 @@ class HashMapRecording:
             try:
                 numeric_grades.append(float(g))
             except ValueError:
-            # Convert letter grades to numbers 
-                letter_to_num = {'A': 90, 'B': 80, 'C': 70, 'D': 60, 'F': 0}  # Dictionary
-                numeric_value = letter_to_num.get(g.strip().upper(), 0)  # Default to 0 if unknown grade
-                numeric_grades.append(numeric_value)
+                letter_to_num = {'A': 90, 'B': 80, 'C': 70, 'D': 60, 'F': 0}
+                numeric_grades.append(letter_to_num.get(g.strip().upper(), 0))
+        return sum(numeric_grades) / len(numeric_grades) if numeric_grades else 0
 
-    # Return average if list is not empty
-        if numeric_grades:
-            return sum(numeric_grades) / len(numeric_grades)
-        else:
-            return 0
-        
     def topScorers():
         all_students = []
         for bucket in HashMapRecording.List_of_Students:
             all_students.extend(bucket)
-
         if not all_students:
             print("--No student records--")
             return
-
-        student_averages = []  
-
-        for student in all_students:
-            grades = student.grade if isinstance(student.grade, list) else student.grade.split(',')
-            average = HashMapRecording.calculate_average(grades)
-            student_averages.append((student, average))
-
+        student_averages = [(s, HashMapRecording.calculate_average(s.grade)) for s in all_students]
         top_students = sorted(student_averages, key=lambda x: x[1], reverse=True)[:3]
         for student, avg in top_students:
             print(f"Roll.no: {student.roll_no}, Name: {student.name}, Avg Grade: {avg:.2f}")
@@ -189,98 +158,85 @@ class HashMapRecording:
         all_students = []
         for bucket in HashMapRecording.List_of_Students:
             all_students.extend(bucket)
-
         if not all_students:
             print("--No student records--")
             return
-
-        ranking_heap = []
-        for student in all_students:
-            avg = HashMapRecording.calculate_average(student.grade)
-            heapq.heappush(ranking_heap, (-avg, student))  
-
+        ranking_heap = [(-HashMapRecording.calculate_average(s.grade), s) for s in all_students]
+        heapq.heapify(ranking_heap)
         rank = 1
         while ranking_heap:
             avg, student = heapq.heappop(ranking_heap)
             print(f"Rank {rank}: {student.name} (Avg Grade: {-avg:.2f})")
             rank += 1
 
-
+    @staticmethod
     def undoLastOp():
-        print("--Not applicable yet--")
+        if not HashMapRecording.undo_stack:
+            print("--No operations to undo--")
+            return
 
+        last_op, data = HashMapRecording.undo_stack.pop()
+        index = HashMapRecording.hash_function(data.roll_no)
+
+        if last_op == 'add':
+            HashMapRecording.List_of_Students[index] = [
+                s for s in HashMapRecording.List_of_Students[index] if s.roll_no != data.roll_no
+            ]
+            print(f"--Undo Add: Student {data.name} removed--")
+
+        elif last_op == 'delete':
+            HashMapRecording.List_of_Students[index].append(data)
+            print(f"--Undo Delete: Student {data.name} restored--")
+
+        elif last_op == 'update':
+            for i, student in enumerate(HashMapRecording.List_of_Students[index]):
+                if student.roll_no == data.roll_no:
+                    HashMapRecording.List_of_Students[index][i] = data
+                    print(f"--Undo Update: Student {data.name} reverted to previous state--")
+                    return
 
 def main():
-    while (True):
-# Functionalities
-        print("\n")
-        print("1. Add Student")
-        print("2. Search Student")
-        print("3. Update Record")
-        print("4. Delete Student")
-        print("5. Display all Students")
-        print("6. Top 3 Scorers")
-        print("7. Show Rankings")
-        print("8. Undo Last Operation")
-        print("9. Exit")
-        func_input=input("Enter your choice: ")
+    while True:
+        print("\n1. Add Student\n2. Search Student\n3. Update Record\n4. Delete Student")
+        print("5. Display all Students\n6. Top 3 Scorers\n7. Show Rankings")
+        print("8. Undo Last Operation\n9. Exit")
+        func_input = input("Enter your choice: ")
+
         try:
-            func_input=int(func_input)
-            if 0<func_input<10:
-                if func_input==1:
-                    print("\n")
-                    roll_no=input("Enter Roll.no: ")
-                    name=input("Enter Name: ")
-                    course=input("Enter Course: ")
-                    grades_input = input("Enter Grades separated by commas (e.g., 80,85,A,F): ")
-                    grades = [g.strip() for g in grades_input.split(",")]
-                    student = HashMapRecording(roll_no, name, course, grades)
-                    student.addStudent()
-
-                elif func_input==2:
-                    print("\n")
-                    roll_no=input("Enter Roll.no to search: ")
-                    HashMapRecording.searchStudent(roll_no)
-
-                elif func_input==3:
-                    print("\n")
-                    roll_no=input("Enter Roll.no to update: ")
-                    HashMapRecording.updateStudent(roll_no)
-
-                elif func_input==4:
-                    print("\n")
-                    roll_no=input("Enter Roll.no to delete: ")
-                    HashMapRecording.deleteStudent(roll_no)
-
-                elif func_input==5:
-                    print("\n")
-                    print("--Students List--")
-                    print("----------------------")
-                    HashMapRecording.ShowStudents()
-
-                elif func_input==6:
-                    print("\n")
-                    print("--Top 3 Scorers--")
-                    print("----------------------")
-                    HashMapRecording.topScorers()
-
-                elif func_input==7:
-                    print("\n")
-                    print("--Ranking--")
-                    print("----------------------")
-                    HashMapRecording.rankings()
-
-                elif func_input==8:
-                    HashMapRecording.undoLastOp()
-                    
-                elif func_input==9:
-                    print("\n")
-                    print("Exiting Program...")
-                    break
-
+            func_input = int(func_input)
+            if func_input == 1:
+                roll_no = input("Enter Roll.no: ")
+                name = input("Enter Name: ")
+                course = input("Enter Course: ")
+                grades_input = input("Enter Grades (comma separated): ")
+                grades = [g.strip() for g in grades_input.split(",")]
+                student = HashMapRecording(roll_no, name, course, grades)
+                student.addStudent()
+            elif func_input == 2:
+                roll_no = input("Enter Roll.no to search: ")
+                HashMapRecording.searchStudent(roll_no)
+            elif func_input == 3:
+                roll_no = input("Enter Roll.no to update: ")
+                HashMapRecording.updateStudent(roll_no)
+            elif func_input == 4:
+                roll_no = input("Enter Roll.no to delete: ")
+                HashMapRecording.deleteStudent(roll_no)
+            elif func_input == 5:
+                print("--Students List--")
+                HashMapRecording.ShowStudents()
+            elif func_input == 6:
+                print("--Top 3 Scorers--")
+                HashMapRecording.topScorers()
+            elif func_input == 7:
+                print("--Ranking--")
+                HashMapRecording.rankings()
+            elif func_input == 8:
+                HashMapRecording.undoLastOp()
+            elif func_input == 9:
+                print("Exiting Program...")
+                break
             else:
-                print("\n")
-                print("--Invalid input--")
+                print("--Invalid Choice--")
         except:
             print("--Input must be a valid number--")
 
